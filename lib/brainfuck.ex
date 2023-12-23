@@ -1,99 +1,127 @@
-defmodule Brainfux do
-  # Brainfuck ops
-  @incr_val "+"
-  @decr_val "-"
-  @incr_pointer ">"
-  @decr_pointer "<"
-  @output_char "."
-  @input_char ","
-  @loop_start "["
+defmodule Brainfuck do
+   @moduledoc """
+  Brainfuck interpreter in Elixir.
+  """
+
+  @doc """
+  Increment the value at the current memory address.
+  """
+  @m_inc "+"
+
+  @doc """
+  Decrement the value at the current memory address.
+  """
+  @m_dec "-"
+
+  @doc """
+  Move to the next memory address.
+  """
+  @mv_next ">"
+
+  @doc """
+  Move to the previous memory address.
+  """
+  @mv_prev "<"
+
+  @doc """
+  Output the byte at the current memory address as a character.
+  """
+  @output_b_char "."
+
+  @doc """
+  Input a byte and store it at the current memory address.
+  """
+  @input_b_char ","
+
+  @doc """
+  Begin a loop if the value at the current memory address is zero.
+  """
+  @loop_begin "["
+
+  @doc """
+  End the current loop if the value at the current memory address is nonzero.
+  """
   @loop_end "]"
-  @empty_program ""
 
-  # specs for the run function.
+  @doc """
+  Empty initial memory state.
+  """
+  @empty ""
+
   @spec run(binary) :: {integer, list, bitstring}
-  def run(program), do: run(program, 0, [0], @empty_program)
+  def run(program), do: run(program, 0, [0], @empty)
 
-  # when the program is empty, return the current state.
-  defp run(@empty_program, addr, mem, output), do: {addr, mem, output}
+  # final condition
+  defp run(@empty, addr, mem, output), do: {addr, mem, output}
 
-  # Increment the value
-  defp run(@incr_val <> rest, addr, mem, output) do
-    run(rest, addr, inc_at(mem, addr), output)
+  # commands
+  defp run(@m_inc <> rest, addr, mem, output) do
+    run(rest, addr, mem |> inc_at(addr), output)
   end
 
-  # decrement the value
-  defp run(@decr_val <> rest, addr, mem, output) do
-    run(rest, addr, dec_at(mem, addr), output)
+  defp run(@m_dec <> rest, addr, mem, output) do
+    run(rest, addr, mem |> dec_at(addr), output)
   end
 
-  # increment pointer operation with boundary check
-  defp run(@incr_pointer <> rest, addr, mem, output) when addr + 1 == Kernel.map_size(mem) do
-    run(rest, addr + 1, Map.put_new(mem, addr + 1, 0), output)
+  defp run(@mv_next <> rest, addr, mem, output) when addr + 1 == length(mem) do
+    run(rest, addr + 1, mem ++ [0], output)
   end
 
-   # decrement pointer operation with boundary check
-   defp run(@decr_pointer <> rest, addr, mem, output) when addr == 0 do
-    run(rest, 0, Map.put_new(mem, 0, 0), output)
-  end
-
-
-  # increment the pointer
-  defp run(@incr_pointer <> rest, addr, mem, output) do
+  defp run(@mv_next <> rest, addr, mem, output) do
     run(rest, addr + 1, mem, output)
   end
 
-  # decrement the pointer
-  defp run(@decr_pointer <> rest, addr, mem, output) do
+  defp run(@mv_prev <> rest, addr, mem, output) when addr == 0 do
+    run(rest, 0, [0] ++ mem, output)
+  end
+
+  defp run(@mv_prev <> rest, addr, mem, output) do
     run(rest, addr - 1, mem, output)
   end
 
-  # output character operation
-  defp run(@output_char <> rest, addr, mem, output) do
-    run(rest, addr, mem, output <> Map.get(mem, addr) |> byte_to_string())
+  defp run(@output_b_char <> rest, addr, mem, output) do
+    run(rest, addr, mem, output <> (mem |> char_at(addr)))
   end
 
-  # input character operation
-  defp run(@input_char <> rest, addr, mem, output) do
-    case IO.getn("Input\n", 1) do
-      <<c::binary-size(1)>> ->
-        val = hd(to_charlist(c))
-        run(rest, addr, Map.put_new(mem, addr, val), output)
+  defp run(@input_b_char <> rest, addr, mem, output) do
+    val =
+      case IO.getn("Input\n", 1) do
+        :eof -> 0
+        c -> c |> to_charlist |> Enum.at(0)
+      end
 
-      :eof ->
-        run(rest, addr, Map.put_new(mem, addr, 0), output)
+    run(rest, addr, mem |> put_at(addr, val), output)
+  end
+
+  defp run(@loop_begin <> rest, addr, mem, output) do
+    case mem |> byte_at(addr) do
+      0 ->
+        run(rest |> jump_to_lend, addr, mem, output)
+
+      _ ->
+        {a, m, o} = run(rest |> loop_body, addr, mem, output)
+        run(@loop_begin <> rest, a, m, o)
     end
   end
 
-  # Loop start operation
-  defp run(@loop_start <> rest, addr, mem, output) do
-    case Map.get(mem, addr) do
-      0 -> run(rest |> jump_to_loop_end, addr, mem, output)
-      _ -> {a, m, o} = run(rest |> loop_body, addr, mem, output)
-            run(@loop_start <> rest, a, m, o)
-    end
-  end
-
-  # Drop every other character
+  # drop every other character
   defp run(<<_>> <> rest, addr, mem, output), do: run(rest, addr, mem, output)
 
-  # Base helpers
-  defp inc_at(mem, addr), do: Kernel.defp(mem, addr, &(&1 + 1 |> rem(255)))
-  defp dec_at(mem, addr), do: Kernel.defp(mem, addr, &(&1 - 1 |> rem(255)))
+  # helpers
+  defp inc_at(list, addr), do: List.update_at(list, addr, &((&1 + 1) |> rem(255)))
+  defp dec_at(list, addr), do: List.update_at(list, addr, &((&1 - 1) |> rem(255)))
+  defp put_at(list, addr, val), do: List.replace_at(list, addr, val)
 
-  # Byte-related helpers
-  defp byte_to_string(byte), do: [byte] |> to_string()
+  defp byte_at(list, addr), do: list |> Enum.at(addr)
+  defp char_at(list, addr), do: [list |> byte_at(addr)] |> to_string()
 
-  # Other helpers
-  defp jump_to_loop_end(source), do: source |> String.slice((source |> find_matching_loop_end())..-1)
-  defp loop_body(source), do: source |> String.slice(0..((source |> find_matching_loop_end()) - 1))
+  defp match_lend(source), do: match_lend(source, 1, 0)
+  defp match_lend(_, 0, acc), do: acc
+  defp match_lend(@empty, _, _), do: raise("unbalanced loop")
+  defp match_lend(@loop_begin <> rest, depth, acc), do: match_lend(rest, depth + 1, acc + 1)
+  defp match_lend(@loop_end <> rest, depth, acc), do: match_lend(rest, depth - 1, acc + 1)
+  defp match_lend(<<_>> <> rest, depth, acc), do: match_lend(rest, depth, acc + 1)
 
-  # TODO:
-  # Function to find the matching loop end
-  defp find_matching_loop_end(@empty_program), do: {:error, "unbalanced loop"}
-  defp find_matching_loop_end(source), do: find_matching_loop_end(source, 1, 0)
-  defp find_matching_loop_end(_, 0, acc), do: acc
-  defp find_matching_loop_end(@loop_start <> rest, depth, acc), do: find_matching_loop_end(rest, depth + 1, acc + 1)
-  defp find_matching_loop_end(@loop_end <> rest, depth, acc), do: find_matching_loop_end(rest, depth - 1, acc + 1)
-  defp find_matching_loop_end(<<_>> <> rest, depth, acc), do: find_matching_loop_end(rest, depth, acc + 1)
+  defp jump_to_lend(source), do: source |> String.slice((source |> match_lend)..-1)
+  defp loop_body(source), do: source |> String.slice(0..((source |> match_lend) - 1))
 end
