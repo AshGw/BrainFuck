@@ -87,24 +87,46 @@ defmodule Brainfuck do
   end
 
   # drops every other character
-  defp run(<<_>> <> rest, addr, mem, output), do: run(rest, addr, mem, output)
+  defp run(<<_>> <> rest, addr, mem, output),
+   do: run(rest, addr, mem, output)
 
   # helpers
+  defp func_inc_at(list, addr),
+    do: List.update_at(list, addr, &((&1 + 1) |> rem(255)))
 
-  defp func_inc_at(list, addr), do: List.update_at(list, addr, &((&1 + 1) |> rem(255)))
-  defp func_dec_at(list, addr), do: List.update_at(list, addr, &((&1 - 1) |> rem(255)))
-  defp func_put_at(list, addr, val), do: List.replace_at(list, addr, val)
+  defp func_dec_at(list, addr),
+    do: List.update_at(list, addr, &((&1 - 1) |> rem(255)))
+    
+  defp func_put_at(list, addr, val),
+    do: List.replace_at(list, addr, val)
 
-  defp func_byte_at(list, addr), do: list |> Enum.at(addr)
-  defp func_char_at(list, addr), do: [list |> func_byte_at(addr)] |> to_string()
+  defp func_byte_at(list, addr),
+    do: list |> Enum.at(addr)
+  defp func_char_at(list, addr),
+    do: [list |> func_byte_at(addr)] |> to_string()
 
-  defp func_find_matching_loop_end(source), do: func_find_matching_loop_end(source, 1, 0)
-  defp func_find_matching_loop_end(_, 0, acc), do: acc
-  defp func_find_matching_loop_end(@empty, _, _), do: raise("unbalanced loop")
-  defp func_find_matching_loop_end(@loop_begin <> rest, depth, acc), do: func_find_matching_loop_end(rest, depth + 1, acc + 1)
-  defp func_find_matching_loop_end(@loop_end <> rest, depth, acc), do: func_find_matching_loop_end(rest, depth - 1, acc + 1)
-  defp func_find_matching_loop_end(<<_>> <> rest, depth, acc), do: func_find_matching_loop_end(rest, depth, acc + 1)
+  defp func_find_matching_loop_end(source),
+     do: func_find_matching_loop_end(source, 1, 0)
 
-  defp func_goto_loop_end(source), do: source |> String.slice((source |> func_find_matching_loop_end)..-1)
-  defp func_loop_body(source), do: source |> String.slice(0..((source |> func_find_matching_loop_end) - 1))
+  defp func_find_matching_loop_end(_, 0, acc),
+     do: acc
+
+  defp func_find_matching_loop_end(@empty, _, _),
+     do: raise("unbalanced loop")
+
+  defp func_find_matching_loop_end(@loop_begin <> rest, depth, acc),
+     do: func_find_matching_loop_end(rest, depth + 1, acc + 1)
+
+  defp func_find_matching_loop_end(@loop_end <> rest, depth, acc),
+     do: func_find_matching_loop_end(rest, depth - 1, acc + 1)
+
+  defp func_find_matching_loop_end(<<_>> <> rest, depth, acc),
+     do: func_find_matching_loop_end(rest, depth, acc + 1)
+
+  defp func_goto_loop_end(source),
+    do: source |> String.slice((source |> func_find_matching_loop_end)..-1)
+
+  defp func_loop_body(source),
+    do: source |> String.slice(0..((source |> func_find_matching_loop_end) - 1))
+
 end
