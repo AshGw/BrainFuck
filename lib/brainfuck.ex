@@ -8,35 +8,35 @@ defmodule Brainfuck do
   # decrement the value at the current memory address.
   @m_dec "-"
 
-  # move to the next memory address.
+  # moves to the next memory address.
   @mv_next ">"
 
-  # move to the previous memory address.
+  # move to the previous memory address
   @mv_prev "<"
 
-  # output the byte at the current memory address as a character.
+  # output the byte at the current memory address as a character
   @output_b_char "."
 
-  # input a byte and store it at the current memory address.
+  # input a byte and store it at the current memory address
 
   @input_b_char ","
 
-  # begin a loop if the value at the current memory address is zero.
+  # begin a loop if the value at the current memory address is zero
   @loop_begin "["
 
-  # end the current loop if the value at the current memory address is nonzero.
+  # end the current loop if the value at the current memory address is nonzero
   @loop_end "]"
 
-  # empty initial memory state.
+  # empty initial memory state
   @empty ""
 
   @spec run(binary) :: {integer, list, bitstring}
   def run(program), do: run(program, 0, [0], @empty)
 
-  # final condition
+  # handles business where there's no remaining code
   defp run(@empty, addr, mem, output), do: {addr, mem, output}
 
-  # runners
+  # all the patterns
   defp run(@m_inc <> rest, addr, mem, output) do
     run(rest, addr, mem |> func_inc_at(addr), output)
   end
@@ -86,27 +86,28 @@ defmodule Brainfuck do
     end
   end
 
-  # drops every other character
+  # only keep bytes at odd positions
   defp run(<<_>> <> rest, addr, mem, output),
    do: run(rest, addr, mem, output)
 
-  # helpers
+  # utility functions
   defp func_inc_at(list, addr),
     do: List.update_at(list, addr, &((&1 + 1) |> rem(255)))
 
   defp func_dec_at(list, addr),
     do: List.update_at(list, addr, &((&1 - 1) |> rem(255)))
-    
+
   defp func_put_at(list, addr, val),
     do: List.replace_at(list, addr, val)
 
   defp func_byte_at(list, addr),
     do: list |> Enum.at(addr)
+
   defp func_char_at(list, addr),
     do: [list |> func_byte_at(addr)] |> to_string()
 
-  defp func_find_matching_loop_end(source),
-     do: func_find_matching_loop_end(source, 1, 0)
+  defp func_find_matching_loop_end(src),
+     do: func_find_matching_loop_end(src, 1, 0)
 
   defp func_find_matching_loop_end(_, 0, acc),
      do: acc
@@ -123,10 +124,10 @@ defmodule Brainfuck do
   defp func_find_matching_loop_end(<<_>> <> rest, depth, acc),
      do: func_find_matching_loop_end(rest, depth, acc + 1)
 
-  defp func_goto_loop_end(source),
-    do: source |> String.slice((source |> func_find_matching_loop_end)..-1)
+  defp func_goto_loop_end(src),
+    do: src |> String.slice((src |> func_find_matching_loop_end)..-1)
 
-  defp func_loop_body(source),
-    do: source |> String.slice(0..((source |> func_find_matching_loop_end) - 1))
+  defp func_loop_body(src),
+    do: src |> String.slice(0..((src |> func_find_matching_loop_end) - 1))
 
 end
