@@ -38,11 +38,11 @@ defmodule Brainfuck do
 
   # runners
   defp run(@m_inc <> rest, addr, mem, output) do
-    run(rest, addr, mem |> inc_at(addr), output)
+    run(rest, addr, mem |> func_inc_at(addr), output)
   end
 
   defp run(@m_dec <> rest, addr, mem, output) do
-    run(rest, addr, mem |> dec_at(addr), output)
+    run(rest, addr, mem |> func_dec_at(addr), output)
   end
 
   defp run(@mv_next <> rest, addr, mem, output) when addr + 1 == length(mem) do
@@ -62,7 +62,7 @@ defmodule Brainfuck do
   end
 
   defp run(@output_b_char <> rest, addr, mem, output) do
-    run(rest, addr, mem, output <> (mem |> char_at(addr)))
+    run(rest, addr, mem, output <> (mem |> func_char_at(addr)))
   end
 
   defp run(@input_b_char <> rest, addr, mem, output) do
@@ -72,16 +72,16 @@ defmodule Brainfuck do
         c -> c |> to_charlist |> Enum.at(0)
       end
 
-    run(rest, addr, mem |> put_at(addr, val), output)
+    run(rest, addr, mem |> func_put_at(addr, val), output)
   end
 
   defp run(@loop_begin <> rest, addr, mem, output) do
-    case mem |> byte_at(addr) do
+    case mem |> func_byte_at(addr) do
       0 ->
-        run(rest |> jump_to_loop_end, addr, mem, output)
+        run(rest |> func_goto_loop_end, addr, mem, output)
 
       _ ->
-        {a, m, o} = run(rest |> loop_body, addr, mem, output)
+        {a, m, o} = run(rest |> func_loop_body, addr, mem, output)
         run(@loop_begin <> rest, a, m, o)
     end
   end
@@ -91,20 +91,20 @@ defmodule Brainfuck do
 
   # helpers
 
-  defp inc_at(list, addr), do: List.update_at(list, addr, &((&1 + 1) |> rem(255)))
-  defp dec_at(list, addr), do: List.update_at(list, addr, &((&1 - 1) |> rem(255)))
-  defp put_at(list, addr, val), do: List.replace_at(list, addr, val)
+  defp func_inc_at(list, addr), do: List.update_at(list, addr, &((&1 + 1) |> rem(255)))
+  defp func_dec_at(list, addr), do: List.update_at(list, addr, &((&1 - 1) |> rem(255)))
+  defp func_put_at(list, addr, val), do: List.replace_at(list, addr, val)
 
-  defp byte_at(list, addr), do: list |> Enum.at(addr)
-  defp char_at(list, addr), do: [list |> byte_at(addr)] |> to_string()
+  defp func_byte_at(list, addr), do: list |> Enum.at(addr)
+  defp func_char_at(list, addr), do: [list |> func_byte_at(addr)] |> to_string()
 
-  defp find_matching_loop_end(source), do: find_matching_loop_end(source, 1, 0)
-  defp find_matching_loop_end(_, 0, acc), do: acc
-  defp find_matching_loop_end(@empty, _, _), do: raise("unbalanced loop")
-  defp find_matching_loop_end(@loop_begin <> rest, depth, acc), do: find_matching_loop_end(rest, depth + 1, acc + 1)
-  defp find_matching_loop_end(@loop_end <> rest, depth, acc), do: find_matching_loop_end(rest, depth - 1, acc + 1)
-  defp find_matching_loop_end(<<_>> <> rest, depth, acc), do: find_matching_loop_end(rest, depth, acc + 1)
+  defp func_find_matching_loop_end(source), do: func_find_matching_loop_end(source, 1, 0)
+  defp func_find_matching_loop_end(_, 0, acc), do: acc
+  defp func_find_matching_loop_end(@empty, _, _), do: raise("unbalanced loop")
+  defp func_find_matching_loop_end(@loop_begin <> rest, depth, acc), do: func_find_matching_loop_end(rest, depth + 1, acc + 1)
+  defp func_find_matching_loop_end(@loop_end <> rest, depth, acc), do: func_find_matching_loop_end(rest, depth - 1, acc + 1)
+  defp func_find_matching_loop_end(<<_>> <> rest, depth, acc), do: func_find_matching_loop_end(rest, depth, acc + 1)
 
-  defp jump_to_loop_end(source), do: source |> String.slice((source |> find_matching_loop_end)..-1)
-  defp loop_body(source), do: source |> String.slice(0..((source |> find_matching_loop_end) - 1))
+  defp func_goto_loop_end(source), do: source |> String.slice((source |> func_find_matching_loop_end)..-1)
+  defp func_loop_body(source), do: source |> String.slice(0..((source |> func_find_matching_loop_end) - 1))
 end
