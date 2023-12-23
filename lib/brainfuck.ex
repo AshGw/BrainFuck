@@ -1,51 +1,33 @@
 defmodule Brainfuck do
    @moduledoc """
-  Brainfuck interpreter in Elixir.
+  Brainfuck interpreter.
   """
-
-  @doc """
-  Increment the value at the current memory address.
-  """
+  # increment the value at the current memory address.
   @m_inc "+"
 
-  @doc """
-  Decrement the value at the current memory address.
-  """
+  # decrement the value at the current memory address.
   @m_dec "-"
 
-  @doc """
-  Move to the next memory address.
-  """
+  # move to the next memory address.
   @mv_next ">"
 
-  @doc """
-  Move to the previous memory address.
-  """
+  # move to the previous memory address.
   @mv_prev "<"
 
-  @doc """
-  Output the byte at the current memory address as a character.
-  """
+  # output the byte at the current memory address as a character.
   @output_b_char "."
 
-  @doc """
-  Input a byte and store it at the current memory address.
-  """
+  # input a byte and store it at the current memory address.
+
   @input_b_char ","
 
-  @doc """
-  Begin a loop if the value at the current memory address is zero.
-  """
+  # begin a loop if the value at the current memory address is zero.
   @loop_begin "["
 
-  @doc """
-  End the current loop if the value at the current memory address is nonzero.
-  """
+  # end the current loop if the value at the current memory address is nonzero.
   @loop_end "]"
 
-  @doc """
-  Empty initial memory state.
-  """
+  # empty initial memory state.
   @empty ""
 
   @spec run(binary) :: {integer, list, bitstring}
@@ -54,7 +36,7 @@ defmodule Brainfuck do
   # final condition
   defp run(@empty, addr, mem, output), do: {addr, mem, output}
 
-  # commands
+  # runners
   defp run(@m_inc <> rest, addr, mem, output) do
     run(rest, addr, mem |> inc_at(addr), output)
   end
@@ -96,7 +78,7 @@ defmodule Brainfuck do
   defp run(@loop_begin <> rest, addr, mem, output) do
     case mem |> byte_at(addr) do
       0 ->
-        run(rest |> jump_to_lend, addr, mem, output)
+        run(rest |> jump_to_loop_end, addr, mem, output)
 
       _ ->
         {a, m, o} = run(rest |> loop_body, addr, mem, output)
@@ -104,10 +86,11 @@ defmodule Brainfuck do
     end
   end
 
-  # drop every other character
+  # drops every other character
   defp run(<<_>> <> rest, addr, mem, output), do: run(rest, addr, mem, output)
 
   # helpers
+
   defp inc_at(list, addr), do: List.update_at(list, addr, &((&1 + 1) |> rem(255)))
   defp dec_at(list, addr), do: List.update_at(list, addr, &((&1 - 1) |> rem(255)))
   defp put_at(list, addr, val), do: List.replace_at(list, addr, val)
@@ -115,13 +98,13 @@ defmodule Brainfuck do
   defp byte_at(list, addr), do: list |> Enum.at(addr)
   defp char_at(list, addr), do: [list |> byte_at(addr)] |> to_string()
 
-  defp match_lend(source), do: match_lend(source, 1, 0)
-  defp match_lend(_, 0, acc), do: acc
-  defp match_lend(@empty, _, _), do: raise("unbalanced loop")
-  defp match_lend(@loop_begin <> rest, depth, acc), do: match_lend(rest, depth + 1, acc + 1)
-  defp match_lend(@loop_end <> rest, depth, acc), do: match_lend(rest, depth - 1, acc + 1)
-  defp match_lend(<<_>> <> rest, depth, acc), do: match_lend(rest, depth, acc + 1)
+  defp find_matching_loop_end(source), do: find_matching_loop_end(source, 1, 0)
+  defp find_matching_loop_end(_, 0, acc), do: acc
+  defp find_matching_loop_end(@empty, _, _), do: raise("unbalanced loop")
+  defp find_matching_loop_end(@loop_begin <> rest, depth, acc), do: find_matching_loop_end(rest, depth + 1, acc + 1)
+  defp find_matching_loop_end(@loop_end <> rest, depth, acc), do: find_matching_loop_end(rest, depth - 1, acc + 1)
+  defp find_matching_loop_end(<<_>> <> rest, depth, acc), do: find_matching_loop_end(rest, depth, acc + 1)
 
-  defp jump_to_lend(source), do: source |> String.slice((source |> match_lend)..-1)
-  defp loop_body(source), do: source |> String.slice(0..((source |> match_lend) - 1))
+  defp jump_to_loop_end(source), do: source |> String.slice((source |> find_matching_loop_end)..-1)
+  defp loop_body(source), do: source |> String.slice(0..((source |> find_matching_loop_end) - 1))
 end
